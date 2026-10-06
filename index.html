@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grocery Unit Price Challenge</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f5f5f2;
+    color: #222;
+    line-height: 1.45;
+  }
+  .wrap {
+    max-width: 1050px;
+    margin: 0 auto;
+    padding: 24px 18px 50px;
+  }
+  header {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 22px 24px;
+    margin-bottom: 20px;
+  }
+  h1 { margin: 0 0 7px; font-size: 28px; }
+  .intro { margin: 0; max-width: 800px; color: #444; }
+  .tip {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: #fff7d6;
+    border-left: 5px solid #e0ad00;
+    border-radius: 5px;
+  }
+  .items {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .item {
+    background: white;
+    border: 1px solid #d6d6d6;
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .item h2 {
+    margin: 0 0 12px;
+    font-size: 20px;
+  }
+  .choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .choice {
+    position: relative;
+  }
+  .choice input {
+    position: absolute;
+    opacity: 0;
+  }
+  .choice label {
+    display: block;
+    min-height: 170px;
+    border: 2px solid #ddd;
+    border-radius: 9px;
+    padding: 12px;
+    cursor: pointer;
+    background: #fafafa;
+  }
+  .choice input:checked + label {
+    border-color: #1769aa;
+    background: #eef7ff;
+  }
+  .choice input:focus + label {
+    outline: 3px solid #b9ddff;
+  }
+  .brand {
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 3px;
+  }
+  .package {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .total {
+    font-size: 25px;
+    font-weight: 800;
+    margin-bottom: 5px;
+  }
+  .unit {
+    font-size: 14px;
+    color: #555;
+  }
+  .fine {
+    font-size: 12px;
+    color: #666;
+    margin-top: 8px;
+  }
+  .selected {
+    margin-top: 9px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #1769aa;
+  }
+  .actions {
+    margin: 22px 0;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+  }
+  button {
+    border: 0;
+    border-radius: 8px;
+    background: #1769aa;
+    color: white;
+    font-size: 17px;
+    font-weight: 700;
+    padding: 13px 22px;
+    cursor: pointer;
+  }
+  button:hover { background: #125486; }
+  .reset {
+    background: #666;
+  }
+  .reset:hover { background: #4e4e4e; }
+  .results {
+    display: none;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 12px;
+    padding: 22px;
+  }
+  .results.show { display: block; }
+  .score {
+    font-size: 25px;
+    font-weight: 800;
+    margin-bottom: 5px;
+  }
+  .bill {
+    font-size: 20px;
+    margin-bottom: 15px;
+  }
+  .summary {
+    border-top: 1px solid #ddd;
+    padding-top: 15px;
+  }
+  .summary-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 14px;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+  }
+  .good { color: #176b38; font-weight: 700; }
+  .bad { color: #a12626; font-weight: 700; }
+  .explain {
+    margin-top: 18px;
+    background: #f4f8fb;
+    padding: 14px;
+    border-radius: 8px;
+  }
+  @media (max-width: 760px) {
+    .items { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 500px) {
+    .choices { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Which Grocery Deal Is Really Better?</h1>
+    <p class="intro">
+      A lower package price does <strong>not</strong> necessarily mean a better deal.
+      For each pair, choose the option you would buy after checking the shelf label.
+    </p>
+    <div class="tip">
+      <strong>How to compare:</strong> Look past the big package price and find the
+      <strong>unit price</strong> in the smaller print. Make sure you are comparing
+      the same unit (per oz, per lb, per 100 ct, etc.). If one label says <strong>per ounce</strong>
+      and another says <strong>per pound</strong>, convert them before deciding.
+      Remember: <strong>1 pound = 16 ounces.</strong> Package size can be deceptive!
+    </div>
+  </header>
+
+  <form id="quiz">
+    <div class="items" id="items"></div>
+
+    <div class="actions">
+      <button type="submit">Check My Choices</button>
+      <button type="button" class="reset" onclick="resetQuiz()">Start Over</button>
+    </div>
+  </form>
+
+  <section class="results" id="results" aria-live="polite"></section>
+</div>
+
+<script>
+const items = [
+  {name:"Milk",options:[
+    {brand:"Store brand",package:"1 gallon",price:4.49,unit:"$4.49 / gal",unitValue:4.49},
+    {brand:"Store brand",package:"2 half-gallons",price:5.49,unit:"$2.75 / half-gal",unitValue:2.745}]},
+  {name:"Greek Yogurt",options:[
+    {brand:"Plain Greek yogurt",package:"32 oz",price:4.49,unit:"$0.14 / oz",unitValue:0.1403},
+    {brand:"Plain Greek yogurt",package:"4 × 5.3 oz cups",price:3.79,unit:"$0.18 / oz",unitValue:0.1788}]},
+  {name:"Chicken Nuggets",options:[
+    {brand:"Family bag",package:"32 oz",price:6.49,unit:"$3.25 / lb",unitValue:3.25},
+    {brand:"Family bag",package:"48 oz",price:8.99,unit:"$3.00 / lb",unitValue:3.00}]},
+  {name:"Pizza Rolls",options:[
+    {brand:"Pepperoni",package:"15 rolls",price:2.49,unit:"$0.17 / roll",unitValue:2.49/15},
+    {brand:"Pepperoni",package:"40 rolls",price:7.99,unit:"$0.20 / roll",unitValue:7.99/40}]},
+  {name:"Mixed Vegetables",options:[
+    {brand:"Frozen mixed vegetables",package:"12 oz",price:1.29,unit:"$1.72 / lb",unitValue:1.29/0.75},
+    {brand:"Frozen mixed vegetables",package:"32 oz",price:2.99,unit:"$1.50 / lb",unitValue:2.99/2}]},
+  {name:"Salad Mix",options:[
+    {brand:"Iceberg salad mix",package:"8 oz",price:2.19,unit:"$4.38 / lb",unitValue:4.38},
+    {brand:"Iceberg salad mix",package:"12 oz",price:3.09,unit:"$4.12 / lb",unitValue:4.12}]},
+  {name:"Avocados",options:[
+    {brand:"Fresh avocados",package:"Bag of 4",price:3.59,unit:" ",unitValue: 3.59/4 },
+    {brand:"Fresh avocados",package:"Bag of 5",price:3.99,unit:" ",unitValue: 3.99/5}]},
+  {name:"Carrots",options:[
+    {brand:"Baby carrots",package:"1 lb bag",price:1.49,unit:" ",unitValue:1.49},
+    {brand:"Baby carrots",package:"2 lb bag",price:2.39,unit:" ",unitValue:2.39/2}]},
+  {name:"Bananas",options:[
+    {brand:"Fresh bananas",package:"2 lb",price:1.38,unit:"$0.69 / lb",unitValue:0.69},
+    {brand:"Fresh bananas",package:"3 lb bunch",price:1.79,unit:"$0.60 / lb",unitValue:1.79/3}]},
+  {name:"Cheerios",options:[
+    {brand:"Cheerios",package:"8.9 oz",price:2.99,unit:"$0.34 / oz",unitValue:2.99/8.9},
+    {brand:"Cheerios",package:"18 oz",price:6.49,unit:"$0.36 / oz",unitValue:6.49/18}]},
+  {name:"Bread",options:[
+    {brand:"Whole Wheat sandwich bread",package:"20 oz loaf",price:2.49,unit:" ",unitValue:2.49/20},
+    {brand:"Whole Wheat sandwich bread",package:"24 oz loaf",price:2.79,unit:" ",unitValue:2.79/24}]},
+  {name:"Paper Towels",compare:"sheets",optionsForComparison:[{sheetPrice:5.49/150},{sheetPrice:8.49/240}],options:[
+    {brand:"Paper towels",package:"6 rolls / 150 sheets",price:5.49,unit:" ",unitValue:5.49/6},
+    {brand:"Paper towels",package:"8 rolls / 240 sheets",price:8.49,unit:" ",unitValue:8.49/8}]},
+  {name:"Pasta",options:[
+    {brand:"Spaghetti",package:"12 oz",price:1.29,unit:"$1.72 / lb",unitValue:1.29/0.75},
+    {brand:"Spaghetti",package:"16 oz",price:1.59,unit:"$0.10 / oz",unitValue:1.59}]},
+  {name:"Peanut Butter",options:[
+    {brand:"Creamy peanut butter",package:"1 lb",price:2.49,unit:"$0.16 / oz",unitValue:2.49/16},
+    {brand:"Creamy peanut butter",package:"28 oz",price:3.99,unit:"$2.28 / lb",unitValue:3.99/28}]},
+  {name:"Frozen Pizza",options:[
+    {brand:"Cheese pizza",package:"12 inch / 20 oz",price:4.99,unit:" ",unitValue:4.99/20},
+    {brand:"Cheese pizza",package:"12 inch / 24 oz",price:6.49,unit:" ",unitValue:6.49/24}]},
+  {name:"Deli Chicken Fingers",options:[
+    {brand:"Deli hot foods",package:"1/2 lb",price:4.49,unit:"$8.98 / lb",unitValue:8.98},
+    {brand:"Deli hot foods",package:"1 lb",price:6.99,unit:"$6.99 / lb",unitValue:6.99}]},
+  {name:"Packaged Sushi",options:[
+    {brand:"California roll",package:"8 pieces",price:6.99,unit:"$0.99 / oz",unitValue:6.99/7},
+    {brand:"California roll",package:"12 pieces",price:8.49,unit:"$0.85 / oz",unitValue:8.49/10}]}
+];
+
+function money(n) {
+  return "$" + n.toFixed(2);
+}
+
+function renderItems() {
+  const container = document.getElementById("items");
+  container.innerHTML = items.map((item, i) => `
+    <article class="item">
+      <h2>${i + 1}. ${item.name}</h2>
+      <div class="choices">
+        ${item.options.map((o, j) => `
+          <div class="choice">
+            <input type="radio" id="item${i}opt${j}" name="item${i}" value="${j}" required>
+            <label for="item${i}opt${j}">
+              <div class="brand">${o.brand}</div>
+              <div class="package">${o.package}</div>
+              <div class="total">${money(o.price)}</div>
+              <div class="unit">Unit price: <strong>${o.unit}</strong></div>
+              ${o.note ? `<div class="fine">${o.note}</div>` : ""}
+              <div class="selected">Choose this deal</div>
+            </label>
+          </div>
+        `).join("")}
+      </div>
+    </article>
+  `).join("");
+}
+
+function getBestIndex(item) {
+  // Paper towels intentionally teach that the shelf's unit may not be
+  // the most useful comparison when the rolls contain different sheet counts.
+  if (item.name === "Paper Towels") {
+    return item.optionsForComparison[0].sheetPrice < item.optionsForComparison[1].sheetPrice ? 0 : 1;
+  }
+  return item.options[0].unitValue <= item.options[1].unitValue ? 0 : 1;
+}
+
+document.getElementById("quiz").addEventListener("submit", function(e) {
+  e.preventDefault();
+
+  let total = 0;
+  let correct = 0;
+  let corrections = [];
+
+  items.forEach((item, i) => {
+    const selected = document.querySelector(`input[name="item${i}"]:checked`);
+    const chosen = Number(selected.value);
+    const best = getBestIndex(item);
+    total += item.options[chosen].price;
+
+    if (chosen === best) {
+      correct++;
+    } else {
+      corrections.push({
+        name: item.name,
+        chosen: item.options[chosen],
+        best: item.options[best]
+      });
+    }
+  });
+
+  let html = `
+    <div class="score">${correct} of ${items.length} best deals selected</div>
+    <div class="bill">Your grocery bill: <strong>${money(total)}</strong></div>
+  `;
+
+  if (corrections.length === 0) {
+    html += `
+      <div class="explain">
+        <strong>Excellent!</strong> You chose the lower unit price for every item.
+        That's the habit that prevents a low-looking package price from fooling you.
+      </div>`;
+  } else {
+    const savings = corrections.reduce((sum, x) => sum + x.chosen.price - x.best.price, 0);
+    html += `
+      <div class="explain">
+        <strong>${corrections.length} choice${corrections.length === 1 ? "" : "s"} could be improved.</strong>
+        The better choices would have reduced this shopping list by
+        <strong>${money(savings)}</strong> without changing the number of items selected.
+      </div>
+      <div class="summary">
+        <h3>Where the unit price mattered</h3>
+        ${corrections.map(x => `
+          <div class="summary-row">
+            <div>
+              <strong>${x.name}</strong><br>
+              You chose: ${x.chosen.package} at ${money(x.chosen.price)}
+            </div>
+            <div class="bad">Not best</div>
+            <div>
+              Better: <strong>${x.best.package}</strong><br>
+              ${money(x.best.price)} — ${x.best.unit}
+            </div>
+          </div>
+        `).join("")}
+      </div>`;
+  }
+
+  html += `
+    <div class="explain">
+      <strong>Remember:</strong> The package price answers “How much will I pay?”
+      The unit price answers “How much am I paying for each ounce, pound, item, or other unit?”
+      You need the second number to compare different package sizes fairly.
+    </div>
+  `;
+
+  const results = document.getElementById("results");
+  results.innerHTML = html;
+  results.classList.add("show");
+  results.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+function resetQuiz() {
+  document.getElementById("quiz").reset();
+  const results = document.getElementById("results");
+  results.classList.remove("show");
+  results.innerHTML = "";
+  window.scrollTo({top: 0, behavior: "smooth"});
+}
+
+renderItems();
+</script>
+</body>
+</html>
